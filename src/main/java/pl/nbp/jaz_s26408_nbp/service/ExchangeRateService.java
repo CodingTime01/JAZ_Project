@@ -7,6 +7,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import pl.nbp.jaz_s26408_nbp.model.ExchangeRateRequest;
 import pl.nbp.jaz_s26408_nbp.repository.ExchangeRateRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -64,8 +67,16 @@ public class ExchangeRateService {
 
             return average;
 
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 404) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono danych dla podanej waluty lub zakresu dat");
+            } else if (e.getStatusCode().value() == 400) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nieprawidłowy format danych (np. błędna data lub waluta)");
+            } else {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Błąd HTTP z NBP: " + e.getMessage());
+            }
         } catch (RestClientException | IOException e) {
-            throw new RuntimeException("Błąd podczas pobierania danych z NBP API: " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Błąd pobierania lub parsowania danych z NBP: " + e.getMessage());
         }
     }
 }
